@@ -1,14 +1,10 @@
-# Rider ignored files
+# Rider
 .idea
 
 # Build results
 [Bb]in/
 [Oo]bj/
 
-# SQLite databases
-*.db
-
-# Local secrets / configs
-appsettings.Development.json
-appsettings.Local.json
-appsettings.*.Local.json
+# User-specific appsettings
+src/Courses.App/appsettings.json
+src/Courses.App/appsettings.Development.json
