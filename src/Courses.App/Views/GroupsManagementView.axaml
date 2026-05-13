@@ -1,0 +1,187 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Courses.App.ViewModels"
+        xmlns:models="using:Courses.App.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="740" d:DesignHeight="500"
+        x:Class="Courses.App.Views.GroupsManagementView"
+        x:DataType="vm:GroupsManagementViewModel"
+        Title="Groups Management"
+        Width="740" Height="500">
+
+    <DockPanel Margin="12">
+
+        <Button Content="+ Create Group"
+                Command="{Binding CreateGroupCommand}"
+                DockPanel.Dock="Top"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,12"/>
+        
+        <StackPanel Orientation="Horizontal" Spacing="12"
+                    DockPanel.Dock="Top" Margin="0,0,0,4"
+                    IsVisible="{Binding IsCreating}">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Group Name"/>
+                <TextBox Text="{Binding NewGroupName}" MinWidth="150"/>
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Course"/>
+                <ComboBox ItemsSource="{Binding Courses}"
+                          SelectedItem="{Binding NewGroupCourse}"
+                          MinWidth="150">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate DataType="models:Course">
+                            <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Teacher"/>
+                <ComboBox ItemsSource="{Binding Teachers}"
+                          SelectedItem="{Binding NewGroupTeacher}"
+                          MinWidth="150">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate DataType="models:Teacher">
+                            <TextBlock>
+                                <Run Text="{Binding FirstName}"/>
+                                <Run Text=" "/>
+                                <Run Text="{Binding LastName}"/>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text=" "/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Save" Command="{Binding SaveCreateGroupCommand}" Padding="6,2"/>
+                    <Button Content="Cancel" Command="{Binding CancelCreateCommand}" Padding="6,2"/>
+                </StackPanel>
+            </StackPanel>
+
+        </StackPanel>
+
+        <TextBlock Text="{Binding ErrorMessage}"
+                   Foreground="Red"
+                   DockPanel.Dock="Top"
+                   Margin="0,4,0,8"
+                   IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:GroupItemViewModel">
+                        <Expander Margin="0,0,0,8">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+
+                                    <TextBlock Text="{Binding EditedName}"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center"
+                                               MinWidth="150"
+                                               IsVisible="{Binding !IsEditing}"/>
+                                    <TextBlock VerticalAlignment="Center" Opacity="0.6"
+                                               IsVisible="{Binding !IsEditing}">
+                                        <Run Text="Teacher:"/>
+                                        <Run Text="{Binding SelectedTeacher.FirstName}"/>
+                                        <Run Text="{Binding SelectedTeacher.LastName}"/>
+                                    </TextBlock>
+
+                                    <TextBox Text="{Binding EditedName}"
+                                             MinWidth="150"
+                                             IsVisible="{Binding IsEditing}"/>
+                                    <ComboBox ItemsSource="{Binding Teachers}"
+                                              SelectedItem="{Binding SelectedTeacher}"
+                                              MinWidth="150"
+                                              IsVisible="{Binding IsEditing}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate DataType="models:Teacher">
+                                                <TextBlock>
+                                                    <Run Text="{Binding FirstName}"/>
+                                                    <Run Text=" "/>
+                                                    <Run Text="{Binding LastName}"/>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+                                    <Button Content="Edit"
+                                            Command="{Binding EditCommand}"
+                                            IsVisible="{Binding !IsEditing}"
+                                            Padding="6,2"/>
+                                    <Button Content="Delete"
+                                            Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).DeleteGroupCommand}"
+                                            CommandParameter="{Binding}"
+                                            IsVisible="{Binding !IsEditing}"
+                                            Padding="6,2"/>
+                                    <DropDownButton Content="Export"
+                                                    IsVisible="{Binding !IsEditing}"
+                                                    Padding="6,2">
+                                        <DropDownButton.Flyout>
+                                            <MenuFlyout>
+                                                <MenuItem Header="Export PDF"
+                                                          Command="{Binding ExportPdfCommand}"/>
+                                                <MenuItem Header="Export DOCX"
+                                                          Command="{Binding ExportDocxCommand}"/>
+                                            </MenuFlyout>
+                                        </DropDownButton.Flyout>
+                                    </DropDownButton>
+
+                                    <Button Content="Save"
+                                            Command="{Binding SaveCommand}"
+                                            IsVisible="{Binding IsEditing}"
+                                            Padding="6,2"/>
+                                    <Button Content="Cancel"
+                                            Command="{Binding CancelCommand}"
+                                            IsVisible="{Binding IsEditing}"
+                                            Padding="6,2"/>
+
+                                </StackPanel>
+                            </Expander.Header>
+
+                            <StackPanel Margin="16,8,0,8" Spacing="4">
+                                <TextBlock Text="{Binding DeleteError}"
+                                           Foreground="Red"
+                                           IsVisible="{Binding DeleteError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{Binding EditError}"
+                                           Foreground="Red"
+                                           IsVisible="{Binding EditError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <ItemsControl ItemsSource="{Binding Group.Students}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="models:Student">
+                                            <TextBlock>
+                                                <Run Text="{Binding FirstName}"/>
+                                                <Run Text=" "/>
+                                                <Run Text="{Binding LastName}"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                    <Button Content="Import CSV"
+                                            Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).ImportCsvCommand}"
+                                            CommandParameter="{Binding}"
+                                            Padding="6,2"/>
+                                    <Button Content="Export CSV"
+                                            IsVisible="{Binding HasStudentsExist}"
+                                            Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).ExportCsvCommand}"
+                                            CommandParameter="{Binding}"
+                                            Padding="6,2"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                        </Expander>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+    </DockPanel>
+</Window>
