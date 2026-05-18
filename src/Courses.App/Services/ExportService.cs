@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Courses.App.Models;
@@ -84,5 +86,30 @@ public static class ExportService
         }
 
         mainPart.Document.Save();
+    }
+
+    public static void ExportToCsv(Group group, string filePath)
+    {
+        var lines = group.Students
+            .Select(s => $"{s.FirstName},{s.LastName}")
+            .Prepend("FirstName,LastName");
+
+        File.WriteAllLines(filePath, lines);
+    }
+
+    public static List<(string FirstName, string LastName)> ImportFromCsv(string filePath)
+    {
+        var lines = File.ReadAllLines(filePath)
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToList();
+
+        if (lines.Count > 0 && lines[0].StartsWith("FirstName", StringComparison.OrdinalIgnoreCase))
+            lines = lines.Skip(1).ToList();
+
+        return lines
+            .Select(line => line.Split(','))
+            .Where(parts => parts.Length >= 2)
+            .Select(parts => (parts[0].Trim(), parts[1].Trim()))
+            .ToList();
     }
 }

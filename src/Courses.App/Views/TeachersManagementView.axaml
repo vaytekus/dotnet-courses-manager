@@ -1,0 +1,103 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Courses.App.ViewModels"
+        xmlns:models="using:Courses.App.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="740" d:DesignHeight="500"
+        x:Class="Courses.App.Views.TeachersManagementView"
+        x:DataType="vm:TeachersManagementViewModel"
+        Title="Teachers Management"
+        Width="740" Height="500">
+
+    <Window.Styles>
+        <Style Selector="TextBox.error">
+            <Setter Property="BorderBrush" Value="Red"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="12">
+        <Button Content="+ Add Teacher"
+                Command="{Binding CreateTeacherCommand}"
+                DockPanel.Dock="Top"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,12"/>
+
+        <StackPanel Orientation="Horizontal" Spacing="12"
+                    DockPanel.Dock="Top" Margin="0,0,0,8"
+                    IsVisible="{Binding IsCreating}">
+            <StackPanel Spacing="4">
+                <TextBlock Text="First Name"/>
+                <TextBox Text="{Binding NewTeacherFirstName}" MinWidth="150"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+                <TextBlock Text="Last Name"/>
+                <TextBox Text="{Binding NewTeacherLastName}" MinWidth="150"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+                <TextBlock Text=" "/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Save" Command="{Binding SaveCreateTeacherCommand}" Padding="6,2"/>
+                    <Button Content="Cancel" Command="{Binding CancelCreateTeacherCommand}" Padding="6,2"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock Text="{Binding CreateError}"
+                   Foreground="Red"
+                   DockPanel.Dock="Top"
+                   Margin="0,0,0,8"
+                   IsVisible="{Binding CreateError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+        <DataGrid ItemsSource="{Binding Teachers}"
+                  AutoGenerateColumns="False"
+                  CanUserReorderColumns="False"
+                  IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="First Name" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:TeacherItemViewModel">
+                            <Panel>
+                                <TextBlock Text="{Binding EditFirstName}" VerticalAlignment="Center" Margin="4,0"
+                                           IsVisible="{Binding !IsEditing}"/>
+                                <TextBox Text="{Binding EditFirstName}"
+                                         IsVisible="{Binding IsEditing}"
+                                         Classes.error="{Binding FirstNameError}"/>
+                            </Panel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Last Name" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:TeacherItemViewModel">
+                            <Panel>
+                                <TextBlock Text="{Binding EditLastName}" VerticalAlignment="Center" Margin="4,0"
+                                           IsVisible="{Binding !IsEditing}"/>
+                                <TextBox Text="{Binding EditLastName}"
+                                         IsVisible="{Binding IsEditing}"
+                                         Classes.error="{Binding LastNameError}"/>
+                            </Panel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Actions" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="vm:TeacherItemViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Button Content="Edit" Command="{Binding EditCommand}"
+                                        IsVisible="{Binding !IsEditing}" Padding="6,2"/>
+                                <Button Content="Delete" Command="{Binding DeleteCommand}"
+                                        IsVisible="{Binding !IsEditing}" Padding="6,2"/>
+                                <Button Content="Save" Command="{Binding SaveCommand}"
+                                        IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                                <Button Content="Cancel" Command="{Binding CancelCommand}"
+                                        IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>

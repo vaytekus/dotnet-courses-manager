@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Courses.App.Data;
 using Courses.App.Models;
-using Courses.App.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Courses.App.ViewModels
@@ -17,7 +15,18 @@ namespace Courses.App.ViewModels
     {
         private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 
-        public IStorageProvider? StorageProvider { get; set; }
+        private IStorageProvider? _storageProvider;
+        
+        public IStorageProvider? StorageProvider
+        {
+            get => _storageProvider;
+            set
+            {
+                _storageProvider = value;
+                foreach (var g in Groups)
+                    g.StorageProvider = value;
+            }
+        }
 
         public ObservableCollection<GroupItemViewModel> Groups { get; } = new();
 
@@ -27,7 +36,7 @@ namespace Courses.App.ViewModels
         
         public IReadOnlyList<Teacher> Teachers => _teachers;
 
-        [ObservableProperty] private  bool _isCreating;
+        [ObservableProperty] private bool _isCreating;
         [ObservableProperty] private string _newGroupName = "";
         [ObservableProperty] private Course? _newGroupCourse;
         [ObservableProperty] private Teacher? _newGroupTeacher;
@@ -41,7 +50,7 @@ namespace Courses.App.ViewModels
 
         private async Task LoadAsync()
         {
-            await using var db = await  _dbContextFactory.CreateDbContextAsync();
+            await using var db = await _dbContextFactory.CreateDbContextAsync();
             var groups = await db.Groups
                 .Include(g => g.Teacher)
                 .Include(g => g.Students)
@@ -62,12 +71,6 @@ namespace Courses.App.ViewModels
         }
         
         [RelayCommand]
-        private Task ImportCsv(GroupItemViewModel item) => Task.CompletedTask;
-        
-        [RelayCommand]
-        private Task ExportCsv(GroupItemViewModel item) => Task.CompletedTask;
-        
-        [RelayCommand]
         private void CreateGroup() => IsCreating = true;
 
         [RelayCommand]
@@ -77,6 +80,7 @@ namespace Courses.App.ViewModels
             NewGroupName = "";
             NewGroupCourse = null;
             NewGroupTeacher = null;
+            ErrorMessage = "";
         }
 
         [RelayCommand]
@@ -84,7 +88,7 @@ namespace Courses.App.ViewModels
         {
             if (string.IsNullOrWhiteSpace(NewGroupName) || NewGroupCourse is null || NewGroupTeacher is null)
             {
-                ErrorMessage = "Name and Course are required.";
+                ErrorMessage = "All fields are required.";
                 return;
             }
             
@@ -100,7 +104,7 @@ namespace Courses.App.ViewModels
             };
 
             db.Groups.Add(group);
-            await  db.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             group.Course = NewGroupCourse;
             group.Teacher = NewGroupTeacher;

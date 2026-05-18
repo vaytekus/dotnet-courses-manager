@@ -73,106 +73,121 @@
                    Margin="0,4,0,8"
                    IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-        <ScrollViewer>
-            <ItemsControl ItemsSource="{Binding Groups}">
+        <ScrollViewer HorizontalAlignment="Stretch">
+            <ItemsControl x:Name="GroupsList" ItemsSource="{Binding Groups}" HorizontalAlignment="Stretch">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="vm:GroupItemViewModel">
-                        <Expander Margin="0,0,0,8">
+                        <Expander Margin="0,0,0,8" HorizontalAlignment="Stretch">
                             <Expander.Header>
-                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{Binding EditedName}"
+                                                   FontWeight="Bold"
+                                                   VerticalAlignment="Center"
+                                                   MinWidth="150"
+                                                   IsVisible="{Binding !IsEditing}"/>
+                                        <TextBlock VerticalAlignment="Center" Opacity="0.6"
+                                                   IsVisible="{Binding !IsEditing}">
+                                            <Run Text="Teacher:"/>
+                                            <Run Text="{Binding SelectedTeacher.FirstName}"/>
+                                            <Run Text="{Binding SelectedTeacher.LastName}"/>
+                                        </TextBlock>
 
-                                    <TextBlock Text="{Binding EditedName}"
-                                               FontWeight="Bold"
-                                               VerticalAlignment="Center"
-                                               MinWidth="150"
-                                               IsVisible="{Binding !IsEditing}"/>
-                                    <TextBlock VerticalAlignment="Center" Opacity="0.6"
-                                               IsVisible="{Binding !IsEditing}">
-                                        <Run Text="Teacher:"/>
-                                        <Run Text="{Binding SelectedTeacher.FirstName}"/>
-                                        <Run Text="{Binding SelectedTeacher.LastName}"/>
-                                    </TextBlock>
+                                        <TextBox Text="{Binding EditedName}"
+                                                 MinWidth="150" Height="28"
+                                                 IsVisible="{Binding IsEditing}"/>
+                                        <ComboBox ItemsSource="{Binding Teachers}"
+                                                  SelectedItem="{Binding SelectedTeacher}"
+                                                  MinWidth="150" Height="28"
+                                                  IsVisible="{Binding IsEditing}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="models:Teacher">
+                                                    <TextBlock>
+                                                        <Run Text="{Binding FirstName}"/>
+                                                        <Run Text=" "/>
+                                                        <Run Text="{Binding LastName}"/>
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
 
-                                    <TextBox Text="{Binding EditedName}"
-                                             MinWidth="150"
-                                             IsVisible="{Binding IsEditing}"/>
-                                    <ComboBox ItemsSource="{Binding Teachers}"
-                                              SelectedItem="{Binding SelectedTeacher}"
-                                              MinWidth="150"
-                                              IsVisible="{Binding IsEditing}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate DataType="models:Teacher">
-                                                <TextBlock>
-                                                    <Run Text="{Binding FirstName}"/>
-                                                    <Run Text=" "/>
-                                                    <Run Text="{Binding LastName}"/>
-                                                </TextBlock>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
+                                        <Button Content="Edit"
+                                                Command="{Binding EditCommand}"
+                                                IsVisible="{Binding !IsEditing}"
+                                                Height="28" Padding="6,0" VerticalContentAlignment="Center"/>
+                                        <Button Content="Delete"
+                                                Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).DeleteGroupCommand}"
+                                                CommandParameter="{Binding}"
+                                                IsVisible="{Binding !IsEditing}"
+                                                Height="28" Padding="6,0" VerticalContentAlignment="Center"/>
+                                        <DropDownButton Content="Export"
+                                                        IsVisible="{Binding !IsEditing}"
+                                                        Height="28" Padding="6,0"
+                                                        VerticalContentAlignment="Center">
+                                            <DropDownButton.Flyout>
+                                                <MenuFlyout>
+                                                    <MenuItem Header="Export PDF"
+                                                              Command="{Binding ExportPdfCommand}"/>
+                                                    <MenuItem Header="Export DOCX"
+                                                              Command="{Binding ExportDocxCommand}"/>
+                                                </MenuFlyout>
+                                            </DropDownButton.Flyout>
+                                        </DropDownButton>
 
-                                    <Button Content="Edit"
-                                            Command="{Binding EditCommand}"
-                                            IsVisible="{Binding !IsEditing}"
-                                            Padding="6,2"/>
-                                    <Button Content="Delete"
-                                            Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).DeleteGroupCommand}"
-                                            CommandParameter="{Binding}"
-                                            IsVisible="{Binding !IsEditing}"
-                                            Padding="6,2"/>
-                                    <DropDownButton Content="Export"
-                                                    IsVisible="{Binding !IsEditing}"
-                                                    Padding="6,2">
-                                        <DropDownButton.Flyout>
-                                            <MenuFlyout>
-                                                <MenuItem Header="Export PDF"
-                                                          Command="{Binding ExportPdfCommand}"/>
-                                                <MenuItem Header="Export DOCX"
-                                                          Command="{Binding ExportDocxCommand}"/>
-                                            </MenuFlyout>
-                                        </DropDownButton.Flyout>
-                                    </DropDownButton>
-
-                                    <Button Content="Save"
-                                            Command="{Binding SaveCommand}"
-                                            IsVisible="{Binding IsEditing}"
-                                            Padding="6,2"/>
-                                    <Button Content="Cancel"
-                                            Command="{Binding CancelCommand}"
-                                            IsVisible="{Binding IsEditing}"
-                                            Padding="6,2"/>
-
+                                        <Button Content="Save"
+                                                Command="{Binding SaveCommand}"
+                                                IsVisible="{Binding IsEditing}"
+                                                Height="28" Padding="6,0" VerticalContentAlignment="Center"/>
+                                        <Button Content="Cancel"
+                                                Command="{Binding CancelCommand}"
+                                                IsVisible="{Binding IsEditing}"
+                                                Height="28" Padding="6,0" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding DeleteError}"
+                                               Foreground="Red"
+                                               IsVisible="{Binding DeleteError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    <TextBlock Text="{Binding EditError}"
+                                               Foreground="Red"
+                                               IsVisible="{Binding EditError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                 </StackPanel>
                             </Expander.Header>
 
                             <StackPanel Margin="16,8,0,8" Spacing="4">
-                                <TextBlock Text="{Binding DeleteError}"
-                                           Foreground="Red"
-                                           IsVisible="{Binding DeleteError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                 <TextBlock Text="{Binding EditError}"
                                            Foreground="Red"
                                            IsVisible="{Binding EditError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                <ItemsControl ItemsSource="{Binding Group.Students}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="models:Student">
-                                            <TextBlock>
-                                                <Run Text="{Binding FirstName}"/>
-                                                <Run Text=" "/>
-                                                <Run Text="{Binding LastName}"/>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <DataGrid ItemsSource="{Binding Students}"
+                                          AutoGenerateColumns="False"
+                                          CanUserReorderColumns="False"
+                                          IsReadOnly="True"
+                                          MaxHeight="200">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="First Name" Binding="{Binding FirstName}" Width="*"/>
+                                        <DataGridTextColumn Header="Last Name" Binding="{Binding LastName}" Width="*"/>
+                                        <DataGridTemplateColumn Header="" Width="Auto">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="Delete"
+                                                            Command="{Binding $parent[DataGrid].((vm:GroupItemViewModel)DataContext).RemoveStudentCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Padding="6,2"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
 
                                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
                                     <Button Content="Import CSV"
-                                            Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).ImportCsvCommand}"
-                                            CommandParameter="{Binding}"
+                                            Command="{Binding ImportToCsvCommand}"
                                             Padding="6,2"/>
                                     <Button Content="Export CSV"
+                                            Command="{Binding ExportToCsvCommand}"
                                             IsVisible="{Binding HasStudentsExist}"
-                                            Command="{Binding $parent[ItemsControl].((vm:GroupsManagementViewModel)DataContext).ExportCsvCommand}"
-                                            CommandParameter="{Binding}"
+                                            Padding="6,2"/>
+                                    <Button Content="Delete All Students"
+                                            Command="{Binding DeleteAllCommand}"
+                                            IsVisible="{Binding HasStudentsExist}"
                                             Padding="6,2"/>
                                 </StackPanel>
                             </StackPanel>

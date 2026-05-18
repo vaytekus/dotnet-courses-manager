@@ -9,47 +9,61 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="Courses Manager"
-        Width="900" 
+        Width="900"
         Height="600">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid Margin="12">
+    <DockPanel Margin="12">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top"
+                    Margin="0,0,0,6" Spacing="12">
+            <TextBlock Text="Courses / Groups" FontWeight="Bold"
+                       VerticalAlignment="Center"/>
+            <Button Content="Manage Groups" Click="OnManageGroupsClick" Padding="8,2"/>
+            <Button Content="Manage Students" Click="OnManageStudentsClick" Padding="8,2"/>
+            <Button Content="Manage Teachers" Click="OnManageTeachersClick" Padding="8,2"/>
+        </StackPanel>
 
-        <DockPanel Grid.Column="0" Margin="0,0,12,0">
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Top"
-                        Margin="0,0,0,6" Spacing="12">
-                <TextBlock Text="Courses / Groups" FontWeight="Bold"
-                           VerticalAlignment="Center"/>
-                <Button Content="Manage Groups" Click="OnManageGroupsClick" Padding="8,2"/>
-            </StackPanel>
-            <TreeView ItemsSource="{Binding Courses}"
-                      SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
-                <TreeView.DataTemplates>
-                    <TreeDataTemplate DataType="models:Course"
-                                      ItemsSource="{Binding Groups}">
-                        <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
-                    </TreeDataTemplate>
-
-                    <TreeDataTemplate DataType="models:Group"
-                                      ItemsSource="{Binding Students}">
-                        <TextBlock Text="{Binding Name}"/>
-                    </TreeDataTemplate>
-
-                    <DataTemplate DataType="models:Student">
-                        <TextBlock>
-                            <Run Text="{Binding FirstName}"/>
-                            <Run Text=" "/>
-                            <Run Text="{Binding LastName}"/>
-                        </TextBlock>
+        <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Courses}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="models:Course">
+                        <Expander Margin="0,0,0,8" HorizontalAlignment="Stretch">
+                            <Expander.Header>
+                                <TextBlock Text="{Binding Name}"
+                                           FontWeight="Bold"
+                                           FontSize="15"
+                                           VerticalAlignment="Center"/>
+                            </Expander.Header>
+                            <ItemsControl ItemsSource="{Binding Groups}" Margin="16,4,0,4">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="models:Group">
+                                        <Expander Margin="0,0,0,4" HorizontalAlignment="Stretch">
+                                            <Expander.Header>
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                            </Expander.Header>
+                                            <DataGrid ItemsSource="{Binding Students}"
+                                                      AutoGenerateColumns="False"
+                                                      CanUserReorderColumns="False"
+                                                      IsReadOnly="True"
+                                                      MaxHeight="200"
+                                                      Margin="16,4,0,4">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="First Name" Binding="{Binding FirstName}" Width="*"/>
+                                                    <DataGridTextColumn Header="Last Name" Binding="{Binding LastName}" Width="*"/>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Expander>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Expander>
                     </DataTemplate>
-                </TreeView.DataTemplates>
-            </TreeView>
-        </DockPanel>
-    </Grid>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
 
 </Window>

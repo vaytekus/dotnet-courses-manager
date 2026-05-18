@@ -36,26 +36,26 @@ namespace Courses.App.Data
                 Id = Guid.NewGuid(), Name = "SQL", Description = "Relational databases"
             };
             
-            var groupA = new Group{ Id =  Guid.NewGuid(), Name = "C#-Spring-2026", Course = csharp, Teacher = teacher1 };
-            var groupB = new Group{ Id =  Guid.NewGuid(), Name = "SQL-Summer-2026", Course = sql, Teacher = teacher2 };
+            var groupA = new Group { Id = Guid.NewGuid(), Name = "C#-Spring-2026", Course = csharp, Teacher = teacher1 };
+            var groupB = new Group { Id = Guid.NewGuid(), Name = "SQL-Summer-2026", Course = sql, Teacher = teacher2 };
             
             groupA.Students.Add(new Student()
             {
-                Id =  Guid.NewGuid(), FirstName = "Ivan", LastName = "Petrov"
+                Id = Guid.NewGuid(), FirstName = "Ivan", LastName = "Petrov"
             });
             groupA.Students.Add(new Student()
             {
-                Id =  Guid.NewGuid(), FirstName = "Olena", LastName = "Koval"
+                Id = Guid.NewGuid(), FirstName = "Olena", LastName = "Koval"
             });
             
             groupB.Students.Add(new Student()
             {
-                Id =  Guid.NewGuid(), FirstName = "Andrii", LastName = "Sydorenko"
+                Id = Guid.NewGuid(), FirstName = "Andrii", LastName = "Sydorenko"
             });
             
             db.AddRange(csharp, sql, groupA, groupB);
             
-            await  db.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
     }
 }

@@ -16,8 +16,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<Course> Courses { get; } = new();
 
-    [ObservableProperty]
-    private object? _selectedNode;
+    [ObservableProperty] private object? _selectedNode;
 
     public IReadOnlyList<Student> Students =>
         SelectedNode is Group g ? g.Students.ToList() : new List<Student>();
@@ -74,4 +73,6 @@ public partial class MainWindowViewModel : ViewModelBase
         Courses.Clear();
         foreach (var course in data) Courses.Add(course);
     }
+
+    public async Task ReloadSync() => await SafeLoadAsync();
 }

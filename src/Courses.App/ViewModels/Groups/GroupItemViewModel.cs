@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -21,10 +23,12 @@ namespace Courses.App.ViewModels
 
         [ObservableProperty] private bool _isEditing;
         [ObservableProperty] private bool _hasStudentsExist;
-        [ObservableProperty] private string _editedName;
+        [ObservableProperty] private string _editedName = "";
         [ObservableProperty] private Teacher? _selectedTeacher;
         [ObservableProperty] private string _deleteError = "";
         [ObservableProperty] private string _editError = "";
+
+        public ObservableCollection<Student> Students { get; } = new();
 
         public GroupItemViewModel(Group group, IReadOnlyList<Teacher> teachers, IDbContextFactory<AppDbContext> dbContextFactory)
         {
@@ -34,6 +38,7 @@ namespace Courses.App.ViewModels
             _editedName = group.Name;
             _selectedTeacher = group.Teacher;
             HasStudentsExist = group.Students.Any();
+            foreach (var s in group.Students) Students.Add(s);
         }
 
         [RelayCommand]
@@ -43,7 +48,7 @@ namespace Courses.App.ViewModels
             SelectedTeacher = Group.Teacher;
             IsEditing = true;
         }
-
+        
         [RelayCommand]
         private async Task Save()
         {
@@ -76,6 +81,7 @@ namespace Courses.App.ViewModels
             EditedName = Group.Name;
             SelectedTeacher = Group.Teacher;
             IsEditing = false;
+            EditError = "";
         }
 
         [RelayCommand]
@@ -102,6 +108,86 @@ namespace Courses.App.ViewModels
             if (folder.Count == 0) return;
             var path = Path.Combine(folder[0].Path.LocalPath, $"{Group.Name}.docx");
             ExportService.ExportToDocx(Group, path);
+        }
+
+        [RelayCommand]
+        private async Task ExportToCsv()
+        {
+            if(StorageProvider is null) return;
+
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save CSV",
+                SuggestedFileName = $"{Group.Name}.csv",
+                FileTypeChoices = new[] { new FilePickerFileType("CSV") { Patterns = new[] { "*.csv" } } }
+            });
+            
+            if(file is null) return;
+            ExportService.ExportToCsv(Group, file.Path.LocalPath);
+        }
+
+        [RelayCommand]
+        private async Task ImportToCsv()
+        {
+            if(StorageProvider is null) return;
+
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select csv file",
+                AllowMultiple = false,
+                FileTypeFilter = new[] { new FilePickerFileType("CSV") { Patterns = new[] { "*.csv" } } }
+            });
+            
+            if(files.Count == 0) return;
+            var students = ExportService.ImportFromCsv(files[0].Path.LocalPath);
+            
+            await using var db = await _dbContextFactory.CreateDbContextAsync();
+            await db.Students.Where(s => s.GroupId == Group.Id).ExecuteDeleteAsync();
+
+            var newStudents = students.Select(s => new Student
+            {
+                Id = Guid.NewGuid(),
+                FirstName = s.FirstName,
+                LastName = s.LastName,
+                GroupId = Group.Id
+            }).ToList();
+
+            db.Students.AddRange(newStudents);
+            await db.SaveChangesAsync();
+
+            Group.Students.Clear();
+            foreach (var s in newStudents) Group.Students.Add(s);
+            Students.Clear();
+            foreach (var s in newStudents) Students.Add(s);
+            
+            HasStudentsExist = Students.Any();
+        }
+
+        [RelayCommand]
+        public async Task DeleteAll()
+        {
+            await using var db = await _dbContextFactory.CreateDbContextAsync();
+            await db.Students.Where(s => s.GroupId == Group.Id).ExecuteDeleteAsync();
+            
+            Group.Students.Clear();
+            Students.Clear();
+            HasStudentsExist = false;
+        }
+
+        [RelayCommand]
+        public async Task RemoveStudent(Student student)
+        {
+            await using var db = await _dbContextFactory.CreateDbContextAsync();
+            var s = await db.Students.FindAsync(student.Id);
+            if(s is null) return;
+            
+            db.Students.Remove(s);
+            await db.SaveChangesAsync();
+            
+            Group.Students.Remove(student);
+            Students.Remove(student);
+
+            HasStudentsExist = Students.Any();
         }
     }
 }
