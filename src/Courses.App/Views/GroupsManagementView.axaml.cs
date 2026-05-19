@@ -1,18 +1,17 @@
 using System;
 using Avalonia.Controls;
-using Courses.App.Data;
 using Courses.App.ViewModels;
-using Microsoft.EntityFrameworkCore;
 
 namespace Courses.App.Views;
 
 public partial class GroupsManagementView : Window
 {
-    public GroupsManagementView(IDbContextFactory<AppDbContext>? dbContextFactory)
+    public GroupsManagementView() { }
+
+    public GroupsManagementView(GroupsManagementViewModel viewModel)
     {
         InitializeComponent();
-        if(dbContextFactory is not null)
-            DataContext = new GroupsManagementViewModel(dbContextFactory);
+        DataContext = viewModel;
     }
 
     protected override void OnOpened(EventArgs e)

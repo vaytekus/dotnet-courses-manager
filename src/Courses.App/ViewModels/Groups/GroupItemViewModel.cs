@@ -11,12 +11,15 @@ using Courses.App.Data;
 using Courses.App.Models;
 using Courses.App.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Courses.App.ViewModels
 {
     public partial class GroupItemViewModel : ViewModelBase
     {
         private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+        private readonly ILogger<GroupItemViewModel> _logger;
+
         public Group Group { get; }
         public IReadOnlyList<Teacher> Teachers { get; }
         public IStorageProvider? StorageProvider { get; set; }
@@ -30,11 +33,16 @@ namespace Courses.App.ViewModels
 
         public ObservableCollection<Student> Students { get; } = new();
 
-        public GroupItemViewModel(Group group, IReadOnlyList<Teacher> teachers, IDbContextFactory<AppDbContext> dbContextFactory)
+        public GroupItemViewModel(
+            Group group, 
+            IReadOnlyList<Teacher> teachers, 
+            IDbContextFactory<AppDbContext> dbContextFactory, 
+            ILoggerFactory loggerFactory)
         {
             Group = group;
             Teachers = teachers;
             _dbContextFactory = dbContextFactory;
+            _logger = loggerFactory.CreateLogger<GroupItemViewModel>();
             _editedName = group.Name;
             _selectedTeacher = group.Teacher;
             HasStudentsExist = group.Students.Any();
@@ -48,7 +56,7 @@ namespace Courses.App.ViewModels
             SelectedTeacher = Group.Teacher;
             IsEditing = true;
         }
-        
+
         [RelayCommand]
         private async Task Save()
         {
@@ -59,18 +67,21 @@ namespace Courses.App.ViewModels
             }
             EditError = "";
 
+            _logger.LogInformation("Saving group {Name}", Group.Name);
+
             await using var db = await _dbContextFactory.CreateDbContextAsync();
             var group = await db.Groups.FindAsync(Group.Id);
             if(group is null) return;
-            
+
             group.Name = EditedName;
             group.TeacherId = SelectedTeacher?.Id;
             await db.SaveChangesAsync();
-            
+
             Group.Name = EditedName;
             Group.TeacherId = SelectedTeacher?.Id;
             Group.Teacher = SelectedTeacher;
-            
+
+            _logger.LogInformation("Group {Name} saved", Group.Name);
             IsEditing = false;
             OnPropertyChanged(nameof(Group));
         }
@@ -94,6 +105,7 @@ namespace Courses.App.ViewModels
             });
             if (folder.Count == 0) return;
             var path = Path.Combine(folder[0].Path.LocalPath, $"{Group.Name}.pdf");
+            _logger.LogInformation("Exporting group {Name} to PDF: {Path}", Group.Name, path);
             ExportService.ExportToPdf(Group, path);
         }
 
@@ -107,6 +119,7 @@ namespace Courses.App.ViewModels
             });
             if (folder.Count == 0) return;
             var path = Path.Combine(folder[0].Path.LocalPath, $"{Group.Name}.docx");
+            _logger.LogInformation("Exporting group {Name} to DOCX: {Path}", Group.Name, path);
             ExportService.ExportToDocx(Group, path);
         }
 
@@ -121,8 +134,9 @@ namespace Courses.App.ViewModels
                 SuggestedFileName = $"{Group.Name}.csv",
                 FileTypeChoices = new[] { new FilePickerFileType("CSV") { Patterns = new[] { "*.csv" } } }
             });
-            
+
             if(file is null) return;
+            _logger.LogInformation("Exporting group {Name} to CSV: {Path}", Group.Name, file.Path.LocalPath);
             ExportService.ExportToCsv(Group, file.Path.LocalPath);
         }
 
@@ -137,10 +151,12 @@ namespace Courses.App.ViewModels
                 AllowMultiple = false,
                 FileTypeFilter = new[] { new FilePickerFileType("CSV") { Patterns = new[] { "*.csv" } } }
             });
-            
+
             if(files.Count == 0) return;
+            _logger.LogInformation("Importing students for group {Name} from CSV: {Path}", Group.Name, files[0].Path.LocalPath);
+
             var students = ExportService.ImportFromCsv(files[0].Path.LocalPath);
-            
+
             await using var db = await _dbContextFactory.CreateDbContextAsync();
             await db.Students.Where(s => s.GroupId == Group.Id).ExecuteDeleteAsync();
 
@@ -159,31 +175,35 @@ namespace Courses.App.ViewModels
             foreach (var s in newStudents) Group.Students.Add(s);
             Students.Clear();
             foreach (var s in newStudents) Students.Add(s);
-            
+
             HasStudentsExist = Students.Any();
+            _logger.LogInformation("Imported {Count} students to group {Name}", newStudents.Count, Group.Name);
         }
 
         [RelayCommand]
         public async Task DeleteAll()
         {
+            _logger.LogInformation("Deleting all students from group {Name}", Group.Name);
             await using var db = await _dbContextFactory.CreateDbContextAsync();
             await db.Students.Where(s => s.GroupId == Group.Id).ExecuteDeleteAsync();
-            
+
             Group.Students.Clear();
             Students.Clear();
             HasStudentsExist = false;
+            _logger.LogInformation("All students deleted from group {Name}", Group.Name);
         }
 
         [RelayCommand]
         public async Task RemoveStudent(Student student)
         {
+            _logger.LogInformation("Removing student {First} {Last} from group {Group}", student.FirstName, student.LastName, Group.Name);
             await using var db = await _dbContextFactory.CreateDbContextAsync();
             var s = await db.Students.FindAsync(student.Id);
             if(s is null) return;
-            
+
             db.Students.Remove(s);
             await db.SaveChangesAsync();
-            
+
             Group.Students.Remove(student);
             Students.Remove(student);
 

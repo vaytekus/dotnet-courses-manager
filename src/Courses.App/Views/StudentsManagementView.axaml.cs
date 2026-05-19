@@ -1,18 +1,15 @@
 using Avalonia.Controls;
-using Courses.App.Data;
 using Courses.App.ViewModels;
-using Microsoft.EntityFrameworkCore;
 
 namespace Courses.App.Views;
 
 public partial class StudentsManagementView : Window
 {
-    public StudentsManagementView(IDbContextFactory<AppDbContext>? dbContextFactory)
+    public StudentsManagementView() { }
+
+    public StudentsManagementView(StudentsManagementViewModel viewModel)
     {
         InitializeComponent();
-        if (dbContextFactory is not null)
-        {
-            DataContext = new StudentsManagementViewModel(dbContextFactory);
-        }
+        DataContext = viewModel;
     }
 }

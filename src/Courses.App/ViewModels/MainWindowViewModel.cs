@@ -7,12 +7,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Courses.App.Data;
 using Courses.App.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Courses.App.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IDbContextFactory<AppDbContext>? _dbContextFactory;
+    
+    private readonly ILogger<MainWindowViewModel>? _logger;
 
     public ObservableCollection<Course> Courses { get; } = new();
 
@@ -26,9 +29,10 @@ public partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(Students));
     }
 
-    public MainWindowViewModel(IDbContextFactory<AppDbContext> dbContextFactory)
+    public MainWindowViewModel(IDbContextFactory<AppDbContext> dbContextFactory, ILoggerFactory loggerFactory)
     {
         _dbContextFactory = dbContextFactory;
+        _logger = loggerFactory.CreateLogger<MainWindowViewModel>();
         _ = SafeLoadAsync();
     }
     
@@ -56,13 +60,22 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task SafeLoadAsync()
     {
-        try { await LoadAsync(); }
-        catch (Exception ex) { Console.Error.WriteLine($"Failed to load courses: {ex}");   } 
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load courses");
+        } 
     }
 
     private async Task LoadAsync()
     {
-        if (_dbContextFactory is null) return;
+        if (_dbContextFactory is null)
+        {
+            throw new InvalidOperationException("DbContextFactory is null"); 
+        };
 
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var data = await db.Courses

@@ -6,12 +6,14 @@ using CommunityToolkit.Mvvm.Input;
 using Courses.App.Data;
 using Courses.App.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Courses.App.ViewModels
 {
     public partial class StudentItemViewModel : ViewModelBase
     {
         private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+        private readonly ILogger<StudentItemViewModel> _logger;
 
         public Student Student { get; }
 
@@ -26,11 +28,16 @@ namespace Courses.App.ViewModels
 
         public Action<StudentItemViewModel>? RequestDelete { get; set; }
 
-        public StudentItemViewModel(Student student, IReadOnlyList<Group> groups, IDbContextFactory<AppDbContext> dbContextFactory)
+        public StudentItemViewModel(
+            Student student, 
+            IReadOnlyList<Group> groups, 
+            IDbContextFactory<AppDbContext> dbContextFactory, 
+            ILoggerFactory loggerFactory)
         {
             Student = student;
             Groups = groups;
             _dbContextFactory = dbContextFactory;
+            _logger = loggerFactory.CreateLogger<StudentItemViewModel>();
             _editFirstName = student.FirstName;
             _editLastName = student.LastName;
             _selectedGroup = student.Group;
@@ -64,6 +71,8 @@ namespace Courses.App.ViewModels
 
             if (FirstNameError || LastNameError) return;
 
+            _logger.LogInformation("Saving student {First} {Last}", Student.FirstName, Student.LastName);
+
             await using var db = await _dbContextFactory.CreateDbContextAsync();
             var student = await db.Students.FindAsync(Student.Id);
             if(student is null) return;
@@ -77,17 +86,20 @@ namespace Courses.App.ViewModels
             Student.LastName = EditLastName;
             Student.GroupId = student.GroupId;
             Student.Group = SelectedGroup ?? Student.Group;
+            _logger.LogInformation("Student {First} {Last} saved", Student.FirstName, Student.LastName);
             IsEditing = false;
         }
 
         [RelayCommand]
         public async Task Delete()
         {
+            _logger.LogInformation("Deleting student {First} {Last}", Student.FirstName, Student.LastName);
             await using var db = await _dbContextFactory.CreateDbContextAsync();
             var student = await db.Students.FindAsync(Student.Id);
             if(student is null) return;
             db.Students.Remove(student);
             await db.SaveChangesAsync();
+            _logger.LogInformation("Student {First} {Last} deleted", Student.FirstName, Student.LastName);
             RequestDelete?.Invoke(this);
         }
     }
