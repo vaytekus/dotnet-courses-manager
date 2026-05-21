@@ -1,20 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Courses.App.Data;
+using Courses.App.Interfaces;
 using Courses.App.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Courses.App.ViewModels
 {
     public partial class StudentsManagementViewModel : ViewModelBase
     {
-        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
-        private readonly ILoggerFactory _loggerFactory;
+        private readonly IStudentRepository _studentRepository;
+        private readonly IGroupRepository _groupRepository;
         private readonly ILogger<StudentsManagementViewModel> _logger;
+        private readonly Func<Student, IReadOnlyList<Group>, StudentItemViewModel> _studentItemFactory;
 
         public ObservableCollection<StudentItemViewModel> Students { get; } = new();
 
@@ -27,75 +28,94 @@ namespace Courses.App.ViewModels
         [ObservableProperty] private Group? _newStudentGroup;
 
         public StudentsManagementViewModel(
-            IDbContextFactory<AppDbContext> dbContextFactory, 
-            ILoggerFactory loggerFactory)
+            IStudentRepository studentRepository,
+            IGroupRepository groupRepository,
+            ILogger<StudentsManagementViewModel> logger,
+            Func<Student, IReadOnlyList<Group>, StudentItemViewModel> studentItemFactory)
         {
-            _dbContextFactory = dbContextFactory;
-            _loggerFactory = loggerFactory;
-            _logger = loggerFactory.CreateLogger<StudentsManagementViewModel>();
+            _studentRepository = studentRepository;
+            _groupRepository = groupRepository;
+            _logger = logger;
+            _studentItemFactory = studentItemFactory;
             _ = LoadAsync();
         }
 
         private async Task LoadAsync()
         {
-            _logger.LogInformation("Loading students");
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            var students = await db.Students
-                .Include(g => g.Group)
-                .ToListAsync();
-
-            var groups = await db.Groups.ToListAsync();
-
-            Groups.Clear();
-            foreach (var g in groups)
-                Groups.Add(g);
-
-            Students.Clear();
-            foreach (var student in students)
+            try
             {
-                var item = new StudentItemViewModel(student, Groups, _dbContextFactory, _loggerFactory);
-                item.RequestDelete = vm => Students.Remove(vm);
-                Students.Add(item);
+                _logger.LogInformation("Loading students");
+                var students = await _studentRepository.GetAllStudentsAsync();
+                var groups = await _groupRepository.GetAllGroupsAsync();
+
+                Groups.Clear();
+                foreach (var g in groups)
+                {
+                    Groups.Add(g);
+                }
+
+                Students.Clear();
+                foreach (var student in students)
+                {
+                    var item = _studentItemFactory(student, Groups);
+                    item.RequestDelete = vm => Students.Remove(vm);
+                    Students.Add(item);
+                }
+
+                _logger.LogInformation("Loaded {Count} students", Students.Count);
             }
-            _logger.LogInformation("Loaded {Count} students", Students.Count);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load students");
+                CreateError = "Failed to load data. Check connection.";
+            }
         }
 
         [RelayCommand]
-        private void CreateStudent() => IsCreating = true;
+        private void CreateStudent()
+        {
+            IsCreating = true;
+        }
 
         [RelayCommand]
-        private async Task SaveCreateStudent()
+        private async Task SaveCreateStudentAsync()
         {
-            if (string.IsNullOrWhiteSpace(NewStudentFirstName) ||
-                string.IsNullOrWhiteSpace(NewStudentLastName) ||
-                NewStudentGroup is null)
+            try
             {
-                CreateError = "Name or Group is required.";
-                return;
+                if (string.IsNullOrWhiteSpace(NewStudentFirstName) ||
+                    string.IsNullOrWhiteSpace(NewStudentLastName) ||
+                    NewStudentGroup is null)
+                {
+                    CreateError = "Name or Group is required.";
+                    return;
+                }
+
+                CreateError = "";
+                _logger.LogInformation("Creating student {First} {Last}", NewStudentFirstName, NewStudentLastName);
+
+                var student = new Student
+                {
+                    Id = Guid.NewGuid(),
+                    FirstName = NewStudentFirstName,
+                    LastName = NewStudentLastName,
+                    GroupId = NewStudentGroup!.Id
+                };
+
+                await _studentRepository.AddStudentAsync(student);
+
+                student.Group = NewStudentGroup;
+                var item = _studentItemFactory(student, Groups);
+                item.RequestDelete = vm => Students.Remove(vm);
+                Students.Add(item);
+                _logger.LogInformation("Student {First} {Last} created", student.FirstName, student.LastName);
+
+                CancelCreateStudent();
             }
-
-            CreateError = "";
-            _logger.LogInformation("Creating student {First} {Last}", NewStudentFirstName, NewStudentLastName);
-
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            var student = new Student
+            catch (Exception ex)
             {
-                Id = Guid.NewGuid(),
-                FirstName = NewStudentFirstName,
-                LastName = NewStudentLastName,
-                GroupId = NewStudentGroup!.Id
-            };
-
-            db.Students.Add(student);
-            await db.SaveChangesAsync();
-
-            student.Group = NewStudentGroup;
-            var item = new StudentItemViewModel(student, Groups, _dbContextFactory, _loggerFactory);
-            item.RequestDelete = vm => Students.Remove(vm);
-            Students.Add(item);
-            _logger.LogInformation("Student {First} {Last} created", student.FirstName, student.LastName);
-
-            CancelCreateStudent();
+                _logger.LogError(ex, "Failed to create student");
+                CreateError = "Failed to save. Try again.";
+            }
         }
 
         [RelayCommand]

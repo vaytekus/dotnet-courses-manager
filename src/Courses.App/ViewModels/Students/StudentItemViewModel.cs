@@ -3,21 +3,20 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Courses.App.Data;
+using Courses.App.Interfaces;
 using Courses.App.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Courses.App.ViewModels
 {
     public partial class StudentItemViewModel : ViewModelBase
     {
-        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
-        private readonly ILogger<StudentItemViewModel> _logger;
-
         public Student Student { get; }
-
         public IReadOnlyList<Group> Groups { get; }
+        public Action<StudentItemViewModel>? RequestDelete { get; set; }
+
+        private readonly IStudentRepository _studentRepository;
+        private readonly ILogger<StudentItemViewModel> _logger;
 
         [ObservableProperty] private Group? _selectedGroup;
         [ObservableProperty] private bool _isEditing;
@@ -25,19 +24,19 @@ namespace Courses.App.ViewModels
         [ObservableProperty] private string _editLastName = "";
         [ObservableProperty] private bool _firstNameError;
         [ObservableProperty] private bool _lastNameError;
-
-        public Action<StudentItemViewModel>? RequestDelete { get; set; }
+        [ObservableProperty] private string _saveError = "";
+        [ObservableProperty] private string _deleteError = "";
 
         public StudentItemViewModel(
-            Student student, 
-            IReadOnlyList<Group> groups, 
-            IDbContextFactory<AppDbContext> dbContextFactory, 
-            ILoggerFactory loggerFactory)
+            Student student,
+            IReadOnlyList<Group> groups,
+            IStudentRepository studentRepository,
+            ILogger<StudentItemViewModel> logger)
         {
             Student = student;
             Groups = groups;
-            _dbContextFactory = dbContextFactory;
-            _logger = loggerFactory.CreateLogger<StudentItemViewModel>();
+            _logger = logger;
+            _studentRepository = studentRepository;
             _editFirstName = student.FirstName;
             _editLastName = student.LastName;
             _selectedGroup = student.Group;
@@ -60,47 +59,62 @@ namespace Courses.App.ViewModels
             SelectedGroup = Student.Group;
             FirstNameError = false;
             LastNameError = false;
+            SaveError = "";
             IsEditing = false;
         }
 
         [RelayCommand]
-        private async Task Save()
+        private async Task SaveAsync()
         {
-            FirstNameError = string.IsNullOrWhiteSpace(EditFirstName);
-            LastNameError = string.IsNullOrWhiteSpace(EditLastName);
+            try
+            {
+                FirstNameError = string.IsNullOrWhiteSpace(EditFirstName);
+                LastNameError = string.IsNullOrWhiteSpace(EditLastName);
 
-            if (FirstNameError || LastNameError) return;
+                if (FirstNameError || LastNameError)
+                {
+                    return;
+                }
 
-            _logger.LogInformation("Saving student {First} {Last}", Student.FirstName, Student.LastName);
+                SaveError = "";
+                _logger.LogInformation("Saving student {First} {Last}", Student.FirstName, Student.LastName);
 
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            var student = await db.Students.FindAsync(Student.Id);
-            if(student is null) return;
-
-            student.FirstName = EditFirstName;
-            student.LastName = EditLastName;
-            student.GroupId = SelectedGroup?.Id ?? Student.GroupId;
-            await db.SaveChangesAsync();
-
-            Student.FirstName = EditFirstName;
-            Student.LastName = EditLastName;
-            Student.GroupId = student.GroupId;
-            Student.Group = SelectedGroup ?? Student.Group;
-            _logger.LogInformation("Student {First} {Last} saved", Student.FirstName, Student.LastName);
-            IsEditing = false;
+                Student.FirstName = EditFirstName;
+                Student.LastName = EditLastName;
+                Student.GroupId = SelectedGroup?.Id ?? Student.GroupId;
+                Student.Group = SelectedGroup ?? Student.Group;
+                await _studentRepository.UpdateStudentAsync(Student);
+                _logger.LogInformation("Student {First} {Last} saved", Student.FirstName, Student.LastName);
+                IsEditing = false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save student");
+                SaveError = "Failed to save. Try again.";
+            }
         }
 
         [RelayCommand]
-        public async Task Delete()
+        public async Task DeleteAsync()
         {
-            _logger.LogInformation("Deleting student {First} {Last}", Student.FirstName, Student.LastName);
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            var student = await db.Students.FindAsync(Student.Id);
-            if(student is null) return;
-            db.Students.Remove(student);
-            await db.SaveChangesAsync();
-            _logger.LogInformation("Student {First} {Last} deleted", Student.FirstName, Student.LastName);
-            RequestDelete?.Invoke(this);
+            try
+            {
+                _logger.LogInformation("Deleting student {First} {Last}", Student.FirstName, Student.LastName);
+                var student = await _studentRepository.GetStudentByIdAsync(Student.Id);
+                if (student is null)
+                {
+                    return;
+                }
+
+                await _studentRepository.RemoveStudentAsync(student);
+                _logger.LogInformation("Student {First} {Last} deleted", Student.FirstName, Student.LastName);
+                RequestDelete?.Invoke(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete student");
+                DeleteError = "Failed to delete. Try again.";
+            }
         }
     }
 }

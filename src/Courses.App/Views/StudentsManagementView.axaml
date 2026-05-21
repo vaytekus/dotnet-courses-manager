@@ -119,15 +119,21 @@
                 <DataGridTemplateColumn Header="Actions" Width="Auto">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:StudentItemViewModel">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <Button Content="Edit" Command="{Binding EditCommand}"
-                                        IsVisible="{Binding !IsEditing}" Padding="6,2"/>
-                                <Button Content="Delete" Command="{Binding DeleteCommand}"
-                                        IsVisible="{Binding !IsEditing}" Padding="6,2"/>
-                                <Button Content="Save" Command="{Binding SaveCommand}"
-                                        IsVisible="{Binding IsEditing}" Padding="6,2"/>
-                                <Button Content="Cancel" Command="{Binding CancelCommand}"
-                                        IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                            <StackPanel Spacing="2">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <Button Content="Edit" Command="{Binding EditCommand}"
+                                            IsVisible="{Binding !IsEditing}" Padding="6,2"/>
+                                    <Button Content="Delete" Command="{Binding DeleteCommand}"
+                                            IsVisible="{Binding !IsEditing}" Padding="6,2"/>
+                                    <Button Content="Save" Command="{Binding SaveCommand}"
+                                            IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                                    <Button Content="Cancel" Command="{Binding CancelCommand}"
+                                            IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding SaveError}" Foreground="Red" FontSize="11"
+                                           IsVisible="{Binding SaveError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{Binding DeleteError}" Foreground="Red" FontSize="11"
+                                           IsVisible="{Binding DeleteError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

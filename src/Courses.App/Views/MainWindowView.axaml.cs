@@ -32,7 +32,10 @@ public partial class MainWindowView : Window
         dialog.Opened += (_, _) => dialog.Activate();
         await dialog.ShowDialog(this);
 
-        if (DataContext is MainWindowViewModel vm) await vm.ReloadSync();
+        if (DataContext is MainWindowViewModel vm)
+        {
+            await vm.ReloadAsync();
+        }
     }
 
     private async void OnManageStudentsClick(object sender, RoutedEventArgs e)
@@ -40,8 +43,11 @@ public partial class MainWindowView : Window
         var dialog = _studentsViewFactory!();
         dialog.Opened += (_, _) => dialog.Activate();
         await dialog.ShowDialog(this);
-        
-        if (DataContext is MainWindowViewModel vm) await vm.ReloadSync();
+
+        if (DataContext is MainWindowViewModel vm)
+        {
+            await vm.ReloadAsync();
+        }
     }
 
     private async void OnManageTeachersClick(object sender, RoutedEventArgs e)
@@ -49,7 +55,10 @@ public partial class MainWindowView : Window
         var dialog = _teachersViewFactory!();
         dialog.Opened += (_, _) => dialog.Activate();
         await dialog.ShowDialog(this);
-        
-        if (DataContext is MainWindowViewModel vm) await vm.ReloadSync();
+
+        if (DataContext is MainWindowViewModel vm)
+        {
+            await vm.ReloadAsync();
+        }
     }
 }

@@ -1,19 +1,24 @@
 ﻿using Avalonia;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Courses.App.Data;
 using Courses.App.Helper;
+using Courses.App.Interfaces;
+using Courses.App.Models;
+using Courses.App.Repository;
 using Courses.App.ViewModels;
 using Courses.App.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
 namespace Courses.App;
 
-sealed class Program
+internal sealed class Program
 {
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -55,8 +60,34 @@ sealed class Program
             sp => () => sp.GetRequiredService<StudentsManagementView>());
         services.AddTransient<Func<TeachersManagementView>>(
             sp => () => sp.GetRequiredService<TeachersManagementView>());
+
+        services.AddTransient<Func<Student, IReadOnlyList<Group>, StudentItemViewModel>>(sp =>
+            (student, groups) => new StudentItemViewModel(
+                student,
+                groups,
+                sp.GetRequiredService<IStudentRepository>(),
+                sp.GetRequiredService<ILogger<StudentItemViewModel>>()));
+
+        services.AddTransient<Func<Teacher, TeacherItemViewModel>>(sp =>
+            teacher => new TeacherItemViewModel(
+                teacher,
+                sp.GetRequiredService<ITeacherRepository>(),
+                sp.GetRequiredService<ILogger<TeacherItemViewModel>>()));
+
+        services.AddTransient<Func<Group, IReadOnlyList<Teacher>, GroupItemViewModel>>(sp =>
+            (group, teachers) => new GroupItemViewModel(
+                group,
+                teachers,
+                sp.GetRequiredService<IGroupRepository>(),
+                sp.GetRequiredService<IStudentRepository>(),
+                sp.GetRequiredService<ILogger<GroupItemViewModel>>()));
         
         services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
+
+        services.AddTransient<ICourseRepository, CourseRepository>();
+        services.AddTransient<IGroupRepository, GroupRepository>();
+        services.AddTransient<IStudentRepository, StudentRepository>();
+        services.AddTransient<ITeacherRepository, TeacherRepository>();
         
         var serviceProvider = services.BuildServiceProvider();
         using (var db = serviceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext())
@@ -65,6 +96,9 @@ sealed class Program
         }
 
         App.Services = serviceProvider;
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Log.Fatal(e.ExceptionObject as Exception, "Unhandled exception");
 
         try
         {

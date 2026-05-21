@@ -10,6 +10,7 @@ namespace Courses.App.Data
     {
         public static async Task SeedAsync(AppDbContext db)
         {
+            ArgumentNullException.ThrowIfNull(db);
             await db.Database.MigrateAsync();
 
             if (!await db.Teachers.AnyAsync())
@@ -20,8 +21,11 @@ namespace Courses.App.Data
                 );
                 await db.SaveChangesAsync(); 
             }
-            
-            if(await db.Courses.AnyAsync()) return;
+
+            if (await db.Courses.AnyAsync())
+            {
+                return;
+            }
 
             var teacher1 = await db.Teachers.FirstAsync();
             var teacher2 = await db.Teachers.Skip(1).FirstAsync();

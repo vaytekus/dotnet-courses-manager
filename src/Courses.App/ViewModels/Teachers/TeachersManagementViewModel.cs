@@ -3,18 +3,17 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Courses.App.Data;
+using Courses.App.Interfaces;
 using Courses.App.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Courses.App.ViewModels
 {
     public partial class TeachersManagementViewModel : ViewModelBase
     {
-        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
-        private readonly ILoggerFactory _loggerFactory;
+        private readonly ITeacherRepository _teacherRepository;
         private readonly ILogger<TeachersManagementViewModel> _logger;
+        private readonly Func<Teacher, TeacherItemViewModel> _teacherItemFactory;
 
         public ObservableCollection<TeacherItemViewModel> Teachers { get; } = new();
 
@@ -24,64 +23,81 @@ namespace Courses.App.ViewModels
         [ObservableProperty] private string _createError = "";
 
         public TeachersManagementViewModel(
-            IDbContextFactory<AppDbContext> dbContextFactory, 
-            ILoggerFactory loggerFactory)
+            ITeacherRepository teacherRepository,
+            ILogger<TeachersManagementViewModel> logger,
+            Func<Teacher, TeacherItemViewModel> teacherItemFactory)
         {
-            _dbContextFactory = dbContextFactory;
-            _loggerFactory = loggerFactory;
-            _logger = loggerFactory.CreateLogger<TeachersManagementViewModel>();
+            _teacherRepository = teacherRepository;
+            _logger = logger;
+            _teacherItemFactory = teacherItemFactory;
             _ = LoadAsync();
         }
 
         private async Task LoadAsync()
         {
-            _logger.LogInformation("Loading teachers");
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            var teachers = await db.Teachers.ToListAsync();
-
-            Teachers.Clear();
-            foreach (var t in teachers)
+            try
             {
-                var item = new TeacherItemViewModel(t, _dbContextFactory, _loggerFactory);
-                item.RequestDelete = vm => Teachers.Remove(vm);
-                Teachers.Add(item);
+                _logger.LogInformation("Loading teachers");
+                var teachers = await _teacherRepository.GetAllTeachersAsync();
+
+                Teachers.Clear();
+                foreach (var t in teachers)
+                {
+                    var item = _teacherItemFactory(t);
+                    item.RequestDelete = vm => Teachers.Remove(vm);
+                    Teachers.Add(item);
+                }
+
+                _logger.LogInformation("Loaded {Count} teachers", Teachers.Count);
             }
-            _logger.LogInformation("Loaded {Count} teachers", Teachers.Count);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load teachers");
+                CreateError = "Failed to load data. Check connection.";
+            }
         }
 
         [RelayCommand]
-        public void CreateTeacher() => IsCreating = true;
+        public void CreateTeacher()
+        {
+            IsCreating = true;
+        }
 
         [RelayCommand]
-        public async Task SaveCreateTeacher()
+        public async Task SaveCreateTeacherAsync()
         {
-            if(string.IsNullOrWhiteSpace(NewTeacherFirstName) || string.IsNullOrWhiteSpace(NewTeacherLastName))
+            try
             {
-                CreateError = "Name is required.";
-                return;
+                if (string.IsNullOrWhiteSpace(NewTeacherFirstName) || string.IsNullOrWhiteSpace(NewTeacherLastName))
+                {
+                    CreateError = "Name is required.";
+                    return;
+                }
+
+                CreateError = "";
+                _logger.LogInformation("Creating teacher {First} {Last}", NewTeacherFirstName, NewTeacherLastName);
+
+                var teacher = new Teacher
+                {
+                    Id = Guid.NewGuid(),
+                    FirstName = NewTeacherFirstName,
+                    LastName = NewTeacherLastName
+                };
+
+                await _teacherRepository.AddTeacherAsync(teacher);
+
+                var item = _teacherItemFactory(teacher);
+                item.RequestDelete = vm => Teachers.Remove(vm);
+                Teachers.Add(item);
+
+                _logger.LogInformation("Teacher {First} {Last} created", teacher.FirstName, teacher.LastName);
+                CancelCreateTeacher();
             }
-
-            CreateError = "";
-            _logger.LogInformation("Creating teacher {First} {Last}", NewTeacherFirstName, NewTeacherLastName);
-
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-
-            var teacher = new Teacher
+            catch (Exception ex)
             {
-                Id = Guid.NewGuid(),
-                FirstName = NewTeacherFirstName,
-                LastName = NewTeacherLastName
-            };
-
-            var item = new TeacherItemViewModel(teacher, _dbContextFactory, _loggerFactory);
-            item.RequestDelete = vm => Teachers.Remove(vm);
-
-            db.Teachers.Add(teacher);
-            await db.SaveChangesAsync();
-
-            Teachers.Add(item);
-            _logger.LogInformation("Teacher {First} {Last} created", teacher.FirstName, teacher.LastName);
-            CancelCreateTeacher();
+                _logger.LogError(ex, "Failed to create teacher");
+                CreateError = "Failed to save. Try again.";
+            }
         }
 
         [RelayCommand]

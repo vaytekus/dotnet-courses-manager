@@ -17,7 +17,10 @@ public static class ExportService
 {
     private static string GetUniqueFilePath(string filePath)
     {
-        if (!File.Exists(filePath)) return filePath;
+        if (!File.Exists(filePath))
+        {
+            return filePath;
+        }
         var dir = Path.GetDirectoryName(filePath)!;
         var name = Path.GetFileNameWithoutExtension(filePath);
         var ext = Path.GetExtension(filePath);

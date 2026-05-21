@@ -26,6 +26,12 @@
             <Button Content="Manage Teachers" Click="OnManageTeachersClick" Padding="8,2"/>
         </StackPanel>
 
+        <TextBlock Text="{Binding LoadError}"
+                   Foreground="Red"
+                   DockPanel.Dock="Top"
+                   Margin="0,4,0,8"
+                   IsVisible="{Binding LoadError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
         <ScrollViewer>
             <ItemsControl ItemsSource="{Binding Courses}">
                 <ItemsControl.ItemTemplate>
