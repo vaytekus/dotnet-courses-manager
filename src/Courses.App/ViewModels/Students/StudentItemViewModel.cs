@@ -11,11 +11,7 @@ namespace Courses.App.ViewModels
 {
     public partial class StudentItemViewModel : ViewModelBase
     {
-        public Student Student { get; }
-        public IReadOnlyList<Group> Groups { get; }
-        public Action<StudentItemViewModel>? RequestDelete { get; set; }
-
-        private readonly IStudentRepository _studentRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<StudentItemViewModel> _logger;
 
         [ObservableProperty] private Group? _selectedGroup;
@@ -27,20 +23,51 @@ namespace Courses.App.ViewModels
         [ObservableProperty] private string _saveError = "";
         [ObservableProperty] private string _deleteError = "";
 
+        public Student Student { get; }
+        public IReadOnlyList<Group> Groups { get; }
+        public Action<StudentItemViewModel>? RequestDelete { get; set; }
+        public bool IsDirty => IsEditing && (
+            EditFirstName != Student.FirstName ||
+            EditLastName != Student.LastName ||
+            SelectedGroup?.Id != Student.GroupId
+        );
+
         public StudentItemViewModel(
             Student student,
             IReadOnlyList<Group> groups,
-            IStudentRepository studentRepository,
+            IUnitOfWork unitOfWork,
             ILogger<StudentItemViewModel> logger)
         {
             Student = student;
             Groups = groups;
             _logger = logger;
-            _studentRepository = studentRepository;
+            _unitOfWork = unitOfWork;
             _editFirstName = student.FirstName;
             _editLastName = student.LastName;
             _selectedGroup = student.Group;
         }
+
+        private bool CanSave() =>
+            !string.IsNullOrWhiteSpace(EditFirstName) &&
+            !string.IsNullOrWhiteSpace(EditLastName);
+
+        partial void OnIsEditingChanged(bool value) =>
+            OnPropertyChanged(nameof(IsDirty));
+
+        partial void OnEditFirstNameChanged(string value)
+        {
+            SaveCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsDirty));
+        }
+
+        partial void OnEditLastNameChanged(string value)
+        {
+            SaveCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsDirty));
+        }
+
+        partial void OnSelectedGroupChanged(Group? value) =>
+            OnPropertyChanged(nameof(IsDirty));
 
         [RelayCommand]
         private void Edit()
@@ -63,7 +90,7 @@ namespace Courses.App.ViewModels
             IsEditing = false;
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanSave))]
         private async Task SaveAsync()
         {
             try
@@ -83,7 +110,8 @@ namespace Courses.App.ViewModels
                 Student.LastName = EditLastName;
                 Student.GroupId = SelectedGroup?.Id ?? Student.GroupId;
                 Student.Group = SelectedGroup ?? Student.Group;
-                await _studentRepository.UpdateStudentAsync(Student);
+                _unitOfWork.Students.UpdateStudent(Student);
+                await _unitOfWork.SaveAsync();
                 _logger.LogInformation("Student {First} {Last} saved", Student.FirstName, Student.LastName);
                 IsEditing = false;
             }
@@ -95,18 +123,20 @@ namespace Courses.App.ViewModels
         }
 
         [RelayCommand]
-        public async Task DeleteAsync()
+        private async Task DeleteAsync()
         {
             try
             {
                 _logger.LogInformation("Deleting student {First} {Last}", Student.FirstName, Student.LastName);
-                var student = await _studentRepository.GetStudentByIdAsync(Student.Id);
+                var student = await _unitOfWork.Students.GetStudentByIdAsync(Student.Id);
                 if (student is null)
                 {
                     return;
                 }
 
-                await _studentRepository.RemoveStudentAsync(student);
+                _unitOfWork.Students.RemoveStudent(student);
+                await _unitOfWork.SaveAsync();
+
                 _logger.LogInformation("Student {First} {Last} deleted", Student.FirstName, Student.LastName);
                 RequestDelete?.Invoke(this);
             }

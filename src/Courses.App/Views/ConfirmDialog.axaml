@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"                                                                                                                                                                                              
+          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"                                                                                                                                                                             
+          x:Class="Courses.App.Views.ConfirmDialog"                                                                                                                                                                                          
+          Title="Unsaved Changes"                                                                                                                                                                                                            
+          Width="320" Height="140"                                                                                                                                                                                                           
+          CanResize="False"                                                                                                                                                                                                                  
+          WindowStartupLocation="CenterOwner">                                                                                                                                                                                               
+      <StackPanel Margin="16" Spacing="16">   
+          <TextBlock x:Name="MessageText" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+              <Button Content="Yes" Click="OnYesClick" Width="80" Height="32"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+              <Button Content="No" Click="OnNoClick" Width="80" Height="32"
+                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+          </StackPanel>                                                                                                                                                                                                                      
+      </StackPanel>
+  </Window>  

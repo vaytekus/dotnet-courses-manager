@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Courses.App.Interfaces;
 using Courses.App.Models;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -13,47 +14,37 @@ using QuestPdfDocument = QuestPDF.Fluent.Document;
 
 namespace Courses.App.Services;
 
-public static class ExportService
+public class ExportService : IExportService
 {
-    private static string GetUniqueFilePath(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return filePath;
-        }
-        var dir = Path.GetDirectoryName(filePath)!;
-        var name = Path.GetFileNameWithoutExtension(filePath);
-        var ext = Path.GetExtension(filePath);
+    private const int _initialCopyIndex = 1;
+    private const int _pdfMargin = 40;
+    private const int _titleFontSize = 18;
+    private const int _subtitleFontSize = 14;
+    private const int _sectionPadding = 16;
+    private const string _csvHeader = "FirstName";
+    private const int _csvHeaderRowCount = 1;
+    private const int _csvColumnCount = 2;
+    private const int _firstNameIndex = 0;
+    private const int _lastNameIndex = 1;
 
-        int copy = 1;
-        string newPath;
-        do
-        {
-            newPath = Path.Combine(dir, $"{name}({copy}){ext}");
-            copy++;
-        } while(File.Exists(newPath));
-        
-        return  newPath;
-    }
-    
-    public static void ExportToPdf(Group group, string filePath)
+    public void ExportToPdf(Group group, string filePath)
     {
         QuestPDF.Settings.License = LicenseType.Community;
-        
-        filePath = GetUniqueFilePath(filePath); 
+
+        filePath = GetUniqueFilePath(filePath);
 
         QuestPdfDocument.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(40);
+                page.Margin(_pdfMargin);
 
                 page.Content().Column(col =>
                 {
-                    col.Item().Text(group.Course.Name).FontSize(18).Bold();
-                    col.Item().Text(group.Name).FontSize(14).SemiBold();
-                    col.Item().PaddingTop(16);
+                    col.Item().Text(group.Course.Name).FontSize(_titleFontSize).Bold();
+                    col.Item().Text(group.Name).FontSize(_subtitleFontSize).SemiBold();
+                    col.Item().PaddingTop(_sectionPadding);
 
                     var students = group.Students.ToList();
                     for (int i = 0; i < students.Count; i++)
@@ -65,9 +56,9 @@ public static class ExportService
         }).GeneratePdf(filePath);
     }
 
-    public static void ExportToDocx(Group group, string filePath)
+    public void ExportToDocx(Group group, string filePath)
     {
-        filePath = GetUniqueFilePath(filePath); 
+        filePath = GetUniqueFilePath(filePath);
         using var doc = WordprocessingDocument.Create(filePath, WordprocessingDocumentType.Document);
         var mainPart = doc.AddMainDocumentPart();
         mainPart.Document = new DocumentFormat.OpenXml.Wordprocessing.Document(new Body());
@@ -91,7 +82,7 @@ public static class ExportService
         mainPart.Document.Save();
     }
 
-    public static void ExportToCsv(Group group, string filePath)
+    public void ExportToCsv(Group group, string filePath)
     {
         var lines = group.Students
             .Select(s => $"{s.FirstName},{s.LastName}")
@@ -100,19 +91,43 @@ public static class ExportService
         File.WriteAllLines(filePath, lines);
     }
 
-    public static List<(string FirstName, string LastName)> ImportFromCsv(string filePath)
+    public List<(string FirstName, string LastName)> ImportFromCsv(string filePath)
     {
         var lines = File.ReadAllLines(filePath)
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
 
-        if (lines.Count > 0 && lines[0].StartsWith("FirstName", StringComparison.OrdinalIgnoreCase))
-            lines = lines.Skip(1).ToList();
+        if (lines.Count > 0 && lines[0].StartsWith(_csvHeader, StringComparison.OrdinalIgnoreCase))
+        {
+            lines = lines.Skip(_csvHeaderRowCount).ToList();
+        }
 
         return lines
             .Select(line => line.Split(','))
-            .Where(parts => parts.Length >= 2)
-            .Select(parts => (parts[0].Trim(), parts[1].Trim()))
+            .Where(parts => parts.Length >= _csvColumnCount)
+            .Select(parts => (parts[_firstNameIndex].Trim(), parts[_lastNameIndex].Trim()))
             .ToList();
+    }
+
+    private static string GetUniqueFilePath(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return filePath;
+        }
+
+        var dir = Path.GetDirectoryName(filePath)!;
+        var name = Path.GetFileNameWithoutExtension(filePath);
+        var ext = Path.GetExtension(filePath);
+
+        int copy = _initialCopyIndex;
+        string newPath;
+        do
+        {
+            newPath = Path.Combine(dir, $"{name}({copy}){ext}");
+            copy++;
+        } while (File.Exists(newPath));
+
+        return newPath;
     }
 }

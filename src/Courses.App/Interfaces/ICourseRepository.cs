@@ -8,5 +8,6 @@ namespace Courses.App.Interfaces
     {
         Task<List<Course>> GetAllCoursesAsync();
         Task<List<Course>> GetAllCoursesWithDetailsAsync();
+        Task<List<Course>> SearchCoursesAsync(string query);
     }
 }

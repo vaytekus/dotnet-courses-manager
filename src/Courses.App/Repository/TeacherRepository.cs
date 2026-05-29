@@ -11,46 +11,49 @@ namespace Courses.App.Repository
 {
     public class TeacherRepository : ITeacherRepository
     {
-        private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+        private readonly AppDbContext _context;
 
-        public TeacherRepository(IDbContextFactory<AppDbContext> dbContextFactory)
+        public TeacherRepository(AppDbContext context)
         {
-            _dbContextFactory = dbContextFactory;
+            _context = context;
         }
 
         public async Task<List<Teacher>> GetAllTeachersAsync()
         {
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            return await db.Teachers.ToListAsync();
+            return await _context.Teachers.ToListAsync();
         }
 
-        public async Task AddTeacherAsync(Teacher teacher)
+        public void AddTeacher(Teacher teacher)
         {
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            db.Teachers.Add(teacher);
-            await db.SaveChangesAsync();
+            _context.Teachers.Add(teacher);
         }
 
-        public async Task UpdateTeacherAsync(Teacher teacher)
+        public void UpdateTeacher(Teacher teacher)
         {
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            db.Teachers.Update(teacher);
-            await db.SaveChangesAsync();
+            _context.Teachers.Update(teacher);
         }
 
-        public async Task DeleteTeacherAsync(Teacher teacher)
+        public void DeleteTeacher(Teacher teacher)
         {
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            db.Teachers.Remove(teacher);
-            await db.SaveChangesAsync();
+            _context.Teachers.Remove(teacher);
         }
 
         public async Task NullifyGroupTeacherAsync(Guid teacherId)
         {
-            await using var db = await _dbContextFactory.CreateDbContextAsync();
-            await db.Groups
+            var groups = await _context.Groups
                 .Where(g => g.TeacherId == teacherId)
-                .ExecuteUpdateAsync(s => s.SetProperty(g => g.TeacherId, (Guid?)null));
+                .ToListAsync();
+            foreach (var g in groups)
+            {
+                g.TeacherId = null;
+            }
+        }
+        
+        public async Task<List<Teacher>> SearchTeachersAsync(string query)
+        {
+            return await _context.Teachers
+                .Where(t => t.FirstName.Contains(query) || t.LastName.Contains(query))
+                .ToListAsync();
         }
     }
 }

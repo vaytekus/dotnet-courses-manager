@@ -4,11 +4,11 @@
         xmlns:models="using:Courses.App.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="740" d:DesignHeight="500"
+        mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="500"
         x:Class="Courses.App.Views.StudentsManagementView"
         x:DataType="vm:StudentsManagementViewModel"
         Title="Students Management"
-        Width="740" Height="500">
+        Width="960" Height="500">
 
     <Window.Styles>
         <Style Selector="TextBox.error">
@@ -19,6 +19,9 @@
             <Setter Property="BorderBrush" Value="Red"/>
             <Setter Property="BorderThickness" Value="1.5"/>
         </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        </Style>
     </Window.Styles>
 
     <DockPanel Margin="12">
@@ -26,39 +29,70 @@
                 Command="{Binding CreateStudentCommand}"
                 DockPanel.Dock="Top"
                 HorizontalAlignment="Left"
-                Margin="0,0,0,12"/>
+                Margin="0,0,0,8"/>
 
-        <StackPanel Orientation="Horizontal" Spacing="12"
-                    DockPanel.Dock="Top" Margin="0,0,0,8"
-                    IsVisible="{Binding IsCreating}">
-            <StackPanel Spacing="4">
-                <TextBlock Text="First Name"/>
-                <TextBox Text="{Binding NewStudentFirstName}" MinWidth="150"/>
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,8" IsVisible="{Binding IsCreating}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="First Name" Margin="0,0,8,4"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="Last Name" Margin="0,0,8,4"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Group" Margin="0,0,8,4"/>
+
+            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding NewStudentFirstName}" Margin="0,0,8,0"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewStudentLastName}" Margin="0,0,8,0"/>
+            <ComboBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding Groups}"
+                      SelectedItem="{Binding NewStudentGroup}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="models:Group">
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Stretch">
+                <Button Content="Save" Command="{Binding SaveCreateStudentCommand}" Padding="6,2"
+                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
+                <Button Content="Cancel" Command="{Binding CancelCreateStudentCommand}" Padding="6,2"
+                        VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
             </StackPanel>
-            <StackPanel Spacing="4">
-                <TextBlock Text="Last Name"/>
-                <TextBox Text="{Binding NewStudentLastName}" MinWidth="150"/>
-            </StackPanel>
-            <StackPanel Spacing="4">
-                <TextBlock Text="Group"/>
-                <ComboBox ItemsSource="{Binding Groups}"
-                          SelectedItem="{Binding NewStudentGroup}"
-                          MinWidth="150">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate DataType="models:Group">
-                            <TextBlock Text="{Binding Name}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </StackPanel>
-            <StackPanel Spacing="4">
-                <TextBlock Text=" "/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Save" Command="{Binding SaveCreateStudentCommand}" Padding="6,2"/>
-                    <Button Content="Cancel" Command="{Binding CancelCreateStudentCommand}" Padding="6,2"/>
-                </StackPanel>
-            </StackPanel>
+        </Grid>
+
+        <TextBox DockPanel.Dock="Top"
+                 Text="{Binding SearchQuery}"
+                 Watermark="Search by name..."
+                 MaxWidth="300"
+                 HorizontalAlignment="Left"
+                 Margin="0,0,0,8"/>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <ComboBox ItemsSource="{Binding Groups}"
+                      SelectedItem="{Binding SelectedGroupFilter}"
+                      PlaceholderText="All groups"
+                      MinWidth="180">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="models:Group">
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Content="×" Command="{Binding ClearGroupFilterCommand}"
+                    IsVisible="{Binding SelectedGroupFilter, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    VerticalAlignment="Center" Padding="6,2"/>
         </StackPanel>
+
+        <TextBlock DockPanel.Dock="Top"
+                   Text="No results found."
+                   IsVisible="{Binding NoResults}"
+                   Foreground="Gray"
+                   Margin="0,0,0,4"/>
 
         <TextBlock Text="{Binding CreateError}"
                    Foreground="Red"
@@ -69,9 +103,10 @@
         <DataGrid ItemsSource="{Binding Students}"
                   AutoGenerateColumns="False"
                   CanUserReorderColumns="False"
+                  CanUserSortColumns="True"
                   IsReadOnly="True">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="First Name" Width="*">
+                <DataGridTemplateColumn Header="First Name" Width="*" SortMemberPath="EditFirstName">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:StudentItemViewModel">
                             <Panel>
@@ -84,7 +119,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Last Name" Width="*">
+                <DataGridTemplateColumn Header="Last Name" Width="*" SortMemberPath="EditLastName">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:StudentItemViewModel">
                             <Panel>
@@ -97,7 +132,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Group" Width="*">
+                <DataGridTemplateColumn Header="Group" Width="*" SortMemberPath="SelectedGroup.Name">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:StudentItemViewModel">
                             <Panel>
@@ -119,22 +154,31 @@
                 <DataGridTemplateColumn Header="Actions" Width="Auto">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate DataType="vm:StudentItemViewModel">
-                            <StackPanel Spacing="2">
-                                <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Stretch">
                                     <Button Content="Edit" Command="{Binding EditCommand}"
-                                            IsVisible="{Binding !IsEditing}" Padding="6,2"/>
+                                            IsVisible="{Binding !IsEditing}" Padding="6,2"
+                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
                                     <Button Content="Delete" Command="{Binding DeleteCommand}"
-                                            IsVisible="{Binding !IsEditing}" Padding="6,2"/>
+                                            IsVisible="{Binding !IsEditing}" Padding="6,2"
+                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
                                     <Button Content="Save" Command="{Binding SaveCommand}"
-                                            IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                                            IsVisible="{Binding IsEditing}" Padding="6,2"
+                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
                                     <Button Content="Cancel" Command="{Binding CancelCommand}"
-                                            IsVisible="{Binding IsEditing}" Padding="6,2"/>
+                                            IsVisible="{Binding IsEditing}" Padding="6,2"
+                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Text="{Binding SaveError}" Foreground="Red" FontSize="11"
+                                <TextBlock Grid.Row="1" Text="{Binding SaveError}" Foreground="Red" FontSize="11"
                                            IsVisible="{Binding SaveError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                <TextBlock Text="{Binding DeleteError}" Foreground="Red" FontSize="11"
+                                <TextBlock Grid.Row="2" Text="{Binding DeleteError}" Foreground="Red" FontSize="11"
                                            IsVisible="{Binding DeleteError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                            </StackPanel>
+                            </Grid>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

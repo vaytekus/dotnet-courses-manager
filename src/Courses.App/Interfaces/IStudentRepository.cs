@@ -8,11 +8,13 @@ namespace Courses.App.Interfaces
     public interface IStudentRepository
     {
         Task<List<Student>> GetAllStudentsAsync();
+        Task<List<Student>> SearchStudentsAsync(string query);
+        Task<List<Student>> GetFilteredStudentsAsync(string searchQuery, Guid? groupId);
         Task<Student?> GetStudentByIdAsync(Guid id);
         Task DeleteAllStudentsByGroupAsync(Guid groupId);
-        Task AddStudentsRangeAsync(List<Student> students);
-        Task RemoveStudentAsync(Student student);
-        Task AddStudentAsync(Student student);
-        Task UpdateStudentAsync(Student student);
+        void AddStudentsRange(List<Student> students);
+        void RemoveStudent(Student student);
+        void AddStudent(Student student);
+        void UpdateStudent(Student student);
     }
 }

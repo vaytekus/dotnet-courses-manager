@@ -10,10 +10,7 @@ namespace Courses.App.ViewModels
 {
     public partial class TeacherItemViewModel : ViewModelBase
     {
-        public Teacher Teacher { get; }
-        public Action<TeacherItemViewModel>? RequestDelete { get; set; }
-
-        private readonly ITeacherRepository _teacherRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<TeacherItemViewModel> _logger;
 
         [ObservableProperty] private bool _isEditing;
@@ -24,20 +21,46 @@ namespace Courses.App.ViewModels
         [ObservableProperty] private string _saveError = "";
         [ObservableProperty] private string _deleteError = "";
 
+        public Teacher Teacher { get; }
+        public Action<TeacherItemViewModel>? RequestDelete { get; set; }
+
+        public bool IsDirty => IsEditing && (
+            EditFirstName != Teacher.FirstName ||
+            EditLastName != Teacher.LastName);
+
         public TeacherItemViewModel(
             Teacher teacher,
-            ITeacherRepository teacherRepository,
+            IUnitOfWork unitOfWork,
             ILogger<TeacherItemViewModel> logger)
         {
             Teacher = teacher;
-            _teacherRepository = teacherRepository;
+            _unitOfWork = unitOfWork;
             _logger = logger;
             _editFirstName = Teacher.FirstName;
             _editLastName = Teacher.LastName;
         }
 
+        private bool CanSave() =>
+            !string.IsNullOrWhiteSpace(EditFirstName) &&
+            !string.IsNullOrWhiteSpace(EditLastName);
+
+        partial void OnIsEditingChanged(bool value) =>
+            OnPropertyChanged(nameof(IsDirty));
+        
+        partial void OnEditFirstNameChanged(string value)
+        {
+            SaveCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsDirty));
+        }
+
+        partial void OnEditLastNameChanged(string value)
+        {
+            SaveCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsDirty));
+        }
+
         [RelayCommand]
-        public void Edit()
+        private void Edit()
         {
             EditFirstName = Teacher.FirstName;
             EditLastName = Teacher.LastName;
@@ -45,7 +68,7 @@ namespace Courses.App.ViewModels
         }
 
         [RelayCommand]
-        public void Cancel()
+        private void Cancel()
         {
             EditFirstName = Teacher.FirstName;
             EditLastName = Teacher.LastName;
@@ -55,8 +78,8 @@ namespace Courses.App.ViewModels
             IsEditing = false;
         }
 
-        [RelayCommand]
-        public async Task SaveAsync()
+        [RelayCommand(CanExecute = nameof(CanSave))]
+        private async Task SaveAsync()
         {
             try
             {
@@ -73,8 +96,9 @@ namespace Courses.App.ViewModels
 
                 Teacher.FirstName = EditFirstName;
                 Teacher.LastName = EditLastName;
-                await _teacherRepository.UpdateTeacherAsync(Teacher);
-
+                _unitOfWork.Teachers.UpdateTeacher(Teacher);
+                await _unitOfWork.SaveAsync();
+                
                 _logger.LogInformation("Teacher {First} {Last} saved", Teacher.FirstName, Teacher.LastName);
                 IsEditing = false;
             }
@@ -86,13 +110,15 @@ namespace Courses.App.ViewModels
         }
 
         [RelayCommand]
-        public async Task DeleteAsync()
+        private async Task DeleteAsync()
         {
             try
             {
                 _logger.LogInformation("Deleting teacher {First} {Last}", Teacher.FirstName, Teacher.LastName);
-                await _teacherRepository.NullifyGroupTeacherAsync(Teacher.Id);
-                await _teacherRepository.DeleteTeacherAsync(Teacher);
+                await _unitOfWork.Teachers.NullifyGroupTeacherAsync(Teacher.Id);
+                _unitOfWork.Teachers.DeleteTeacher(Teacher);
+                await _unitOfWork.SaveAsync();
+                    
                 _logger.LogInformation("Teacher {First} {Last} deleted", Teacher.FirstName, Teacher.LastName);
                 RequestDelete?.Invoke(this);
             }

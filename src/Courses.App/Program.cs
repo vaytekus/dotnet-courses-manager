@@ -7,6 +7,7 @@ using Courses.App.Helper;
 using Courses.App.Interfaces;
 using Courses.App.Models;
 using Courses.App.Repository;
+using Courses.App.Services;
 using Courses.App.ViewModels;
 using Courses.App.Views;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,10 @@ namespace Courses.App;
 
 internal sealed class Program
 {
+    private const string _logsFolder = "Logs";
+    private const string _logFileName = "log-.txt";
+    private const int _retainedLogFileCount = 10;
+
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -28,14 +33,14 @@ internal sealed class Program
     {
         var config = ConfigurationHelper.Build();
 
-        var logPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Logs", "log-.txt");
+        var logPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", _logsFolder, _logFileName);
 
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(config)
             .WriteTo.File(
                 path: logPath,
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 10,
+                retainedFileCountLimit: _retainedLogFileCount,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}"
             )
             .CreateLogger();
@@ -65,29 +70,32 @@ internal sealed class Program
             (student, groups) => new StudentItemViewModel(
                 student,
                 groups,
-                sp.GetRequiredService<IStudentRepository>(),
+                sp.GetRequiredService<IUnitOfWork>(),
                 sp.GetRequiredService<ILogger<StudentItemViewModel>>()));
 
         services.AddTransient<Func<Teacher, TeacherItemViewModel>>(sp =>
             teacher => new TeacherItemViewModel(
                 teacher,
-                sp.GetRequiredService<ITeacherRepository>(),
+                sp.GetRequiredService<IUnitOfWork>(),
                 sp.GetRequiredService<ILogger<TeacherItemViewModel>>()));
 
         services.AddTransient<Func<Group, IReadOnlyList<Teacher>, GroupItemViewModel>>(sp =>
             (group, teachers) => new GroupItemViewModel(
                 group,
                 teachers,
-                sp.GetRequiredService<IGroupRepository>(),
-                sp.GetRequiredService<IStudentRepository>(),
-                sp.GetRequiredService<ILogger<GroupItemViewModel>>()));
+                sp.GetRequiredService<IUnitOfWork>(),
+                sp.GetRequiredService<ILogger<GroupItemViewModel>>(),
+                sp.GetRequiredService<IExportService>()));
         
         services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
 
-        services.AddTransient<ICourseRepository, CourseRepository>();
-        services.AddTransient<IGroupRepository, GroupRepository>();
-        services.AddTransient<IStudentRepository, StudentRepository>();
-        services.AddTransient<ITeacherRepository, TeacherRepository>();
+        services.AddScoped<AppDbContext>();
+        services.AddScoped<ICourseRepository, CourseRepository>();
+        services.AddScoped<IGroupRepository, GroupRepository>();
+        services.AddScoped<IStudentRepository, StudentRepository>();
+        services.AddScoped<ITeacherRepository, TeacherRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IExportService, ExportService>();
         
         var serviceProvider = services.BuildServiceProvider();
         using (var db = serviceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext())
@@ -110,7 +118,7 @@ internal sealed class Program
         {
             Log.Fatal(e, "Critical startup error");
         }
-        finally{
+        finally {
             Log.CloseAndFlush();
         }
     }

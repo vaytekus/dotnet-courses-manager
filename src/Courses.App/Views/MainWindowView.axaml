@@ -26,6 +26,19 @@
             <Button Content="Manage Teachers" Click="OnManageTeachersClick" Padding="8,2"/>
         </StackPanel>
 
+        <TextBox DockPanel.Dock="Top"
+                 Text="{Binding SearchQuery}"
+                 Watermark="Search courses..."
+                 MaxWidth="300"
+                 HorizontalAlignment="Left"
+                 Margin="0,0,0,8"/>
+
+        <TextBlock DockPanel.Dock="Top"
+                   Text="No results found."
+                   IsVisible="{Binding NoResults}"
+                   Foreground="Gray"
+                   Margin="0,0,0,4"/>
+
         <TextBlock Text="{Binding LoadError}"
                    Foreground="Red"
                    DockPanel.Dock="Top"
@@ -53,6 +66,7 @@
                                             <DataGrid ItemsSource="{Binding Students}"
                                                       AutoGenerateColumns="False"
                                                       CanUserReorderColumns="False"
+                                                      CanUserSortColumns="True"
                                                       IsReadOnly="True"
                                                       MaxHeight="200"
                                                       Margin="16,4,0,4">

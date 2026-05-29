@@ -16,15 +16,10 @@ namespace Courses.App.ViewModels
 {
     public partial class GroupItemViewModel : ViewModelBase
     {
-        public Group Group { get; }
-        public IReadOnlyList<Teacher> Teachers { get; }
-        public IStorageProvider? StorageProvider { get; set; }
-        public ObservableCollection<Student> Students { get; } = new();
-        
-        private readonly IGroupRepository _groupRepository;
-        private readonly IStudentRepository _studentRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<GroupItemViewModel> _logger;
-        
+        private readonly IExportService _exportService;
+
         [ObservableProperty] private bool _isEditing;
         [ObservableProperty] private bool _hasStudentsExist;
         [ObservableProperty] private string _editedName = "";
@@ -33,18 +28,26 @@ namespace Courses.App.ViewModels
         [ObservableProperty] private string _saveError = "";
         [ObservableProperty] private string _exportError = "";
 
+        public Group Group { get; }
+        public IReadOnlyList<Teacher> Teachers { get; }
+        public IStorageProvider? StorageProvider { get; set; }
+        public ObservableCollection<Student> Students { get; } = new();
+        public bool IsDirty => IsEditing && (
+            EditedName != Group.Name ||
+            SelectedTeacher?.Id != Group.TeacherId); 
+
         public GroupItemViewModel(
             Group group,
             IReadOnlyList<Teacher> teachers,
-            IGroupRepository groupRepository,
-            IStudentRepository studentRepository,
-            ILogger<GroupItemViewModel> logger)
+            IUnitOfWork unitOfWork,
+            ILogger<GroupItemViewModel> logger,
+            IExportService exportService)
         {
             Group = group;
             Teachers = teachers;
-            _groupRepository = groupRepository;
-            _studentRepository = studentRepository;
+            _unitOfWork = unitOfWork;
             _logger = logger;
+            _exportService = exportService;
             _editedName = group.Name;
             _selectedTeacher = group.Teacher;
             HasStudentsExist = group.Students.Any();
@@ -54,6 +57,21 @@ namespace Courses.App.ViewModels
             }
         }
 
+        private bool CanSave() =>
+            !string.IsNullOrWhiteSpace(EditedName);
+        
+        partial void OnIsEditingChanged(bool value) =>
+            OnPropertyChanged(nameof(IsDirty));
+
+        partial void OnEditedNameChanged(string value)
+        {
+            SaveCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsDirty));
+        }
+        
+        partial void OnSelectedTeacherChanged(Teacher? value) =>
+            OnPropertyChanged(nameof(IsDirty));
+
         [RelayCommand]
         private void Edit()
         {
@@ -62,7 +80,7 @@ namespace Courses.App.ViewModels
             IsEditing = true;
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanSave))]
         private async Task SaveAsync()
         {
             try
@@ -79,8 +97,10 @@ namespace Courses.App.ViewModels
                 Group.Name = EditedName;
                 Group.TeacherId = SelectedTeacher?.Id;
                 Group.Teacher = SelectedTeacher;
-                await _groupRepository.UpdateGroupAsync(Group);
-
+                
+                _unitOfWork.Groups.UpdateGroup(Group);
+                await _unitOfWork.SaveAsync();
+                
                 _logger.LogInformation("Group {Name} saved", Group.Name);
                 IsEditing = false;
                 OnPropertyChanged(nameof(Group));
@@ -123,7 +143,7 @@ namespace Courses.App.ViewModels
 
                 var path = Path.Combine(folder[0].Path.LocalPath, $"{Group.Name}.pdf");
                 _logger.LogInformation("Exporting group {Name} to PDF: {Path}", Group.Name, path);
-                ExportService.ExportToPdf(Group, path);
+                _exportService.ExportToPdf(Group, path);
             }
             catch (Exception ex)
             {
@@ -154,7 +174,7 @@ namespace Courses.App.ViewModels
 
                 var path = Path.Combine(folder[0].Path.LocalPath, $"{Group.Name}.docx");
                 _logger.LogInformation("Exporting group {Name} to DOCX: {Path}", Group.Name, path);
-                ExportService.ExportToDocx(Group, path);
+                _exportService.ExportToDocx(Group, path);
             }
             catch (Exception ex)
             {
@@ -186,7 +206,7 @@ namespace Courses.App.ViewModels
                 }
 
                 _logger.LogInformation("Exporting group {Name} to CSV: {Path}", Group.Name, file.Path.LocalPath);
-                ExportService.ExportToCsv(Group, file.Path.LocalPath);
+                _exportService.ExportToCsv(Group, file.Path.LocalPath);
             }
             catch (Exception ex)
             {
@@ -219,9 +239,9 @@ namespace Courses.App.ViewModels
 
                 _logger.LogInformation("Importing students for group {Name} from CSV: {Path}", Group.Name, files[0].Path.LocalPath);
 
-                var students = ExportService.ImportFromCsv(files[0].Path.LocalPath);
+                var students = _exportService.ImportFromCsv(files[0].Path.LocalPath);
 
-                await _studentRepository.DeleteAllStudentsByGroupAsync(Group.Id);
+                await _unitOfWork.Students.DeleteAllStudentsByGroupAsync(Group.Id);
 
                 var newStudents = students.Select(s => new Student
                 {
@@ -231,8 +251,9 @@ namespace Courses.App.ViewModels
                     GroupId = Group.Id
                 }).ToList();
 
-                await _studentRepository.AddStudentsRangeAsync(newStudents);
-
+                _unitOfWork.Students.AddStudentsRange(newStudents);
+                await _unitOfWork.SaveAsync();
+                
                 Group.Students.Clear();
                 foreach (var s in newStudents)
                 {
@@ -256,12 +277,13 @@ namespace Courses.App.ViewModels
         }
 
         [RelayCommand]
-        public async Task DeleteAllAsync()
+        private async Task DeleteAllAsync()
         {
             try
             {
                 _logger.LogInformation("Deleting all students from group {Name}", Group.Name);
-                await _studentRepository.DeleteAllStudentsByGroupAsync(Group.Id);
+                await _unitOfWork.Students.DeleteAllStudentsByGroupAsync(Group.Id);
+                await _unitOfWork.SaveAsync();
 
                 Group.Students.Clear();
                 Students.Clear();
@@ -276,19 +298,20 @@ namespace Courses.App.ViewModels
         }
 
         [RelayCommand]
-        public async Task RemoveStudentAsync(Student student)
+        private async Task RemoveStudentAsync(Student student)
         {
             try
             {
                 _logger.LogInformation("Removing student {First} {Last} from group {Group}", student.FirstName, student.LastName, Group.Name);
-                var s = await _studentRepository.GetStudentByIdAsync(student.Id);
+                var s = await _unitOfWork.Students.GetStudentByIdAsync(student.Id);
                 if (s is null)
                 {
                     return;
                 }
 
-                await _studentRepository.RemoveStudentAsync(s);
-
+                _unitOfWork.Students.RemoveStudent(student);
+                await _unitOfWork.SaveAsync();
+                
                 Group.Students.Remove(student);
                 Students.Remove(student);
 

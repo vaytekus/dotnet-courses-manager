@@ -8,9 +8,10 @@ namespace Courses.App.Interfaces
     public interface ITeacherRepository
     {
         Task<List<Teacher>> GetAllTeachersAsync();
-        Task AddTeacherAsync(Teacher teacher);
-        Task UpdateTeacherAsync(Teacher teacher);
-        Task DeleteTeacherAsync(Teacher teacher);
+        Task<List<Teacher>> SearchTeachersAsync(string query);
+        void AddTeacher(Teacher teacher);
+        void UpdateTeacher(Teacher teacher);
+        void DeleteTeacher(Teacher teacher);
         Task NullifyGroupTeacherAsync(Guid teacherId);
     }
 }
